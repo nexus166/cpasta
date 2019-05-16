@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set +xv;
+
+TARGET=${1:-"."}
+
+_pack() { gzip -cf9 ${1:-"-"} 2>/dev/null | base64 | tr -d '\n'; }
+_echo_cmd() { printf "echo \"%s\" | base64 --decode | gunzip -cf > %s; " "$(_pack ${1})" "${1:-${2}}"; }
+_help() { printf "Usage: %s TARGET [%s . --type f EXTRA_ARGUMENTS]\\n" "$0" "$(command -v find)"; }
+
+case "${TARGET}" in
+        -h|-H|--help) _help && exit 0;;
+esac
+
+if [[ -t 0 ]]; then
+	if [[ -f "${TARGET}" ]]; then
+		printf "%s \\n" "$(_echo_cmd ${TARGET})";
+	elif [[ -d "${TARGET}" ]]; then
+		cd "${TARGET}";
+		for _file in $(find . -type f ${@:2}); do
+			[[ "$(dirname ${_file})" != "." ]] && printf "mkdir -p %s; " "$(dirname ${_file})";
+			printf "%s " "$(_echo_cmd ${_file})";
+		done
+	else
+		_help && exit 127;
+	fi
+else
+	_echo_cmd "" "${1}";
+fi
+
+cd - 2>&1 >/dev/null;
